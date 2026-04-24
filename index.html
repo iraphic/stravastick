@@ -183,6 +183,9 @@ input[type=file]{display:none}
       </label>
     </div>
     <input type="file" id="tpl-file" accept="image/png,image/jpeg,image/webp" onchange="uploadTemplate(event)">
+    <!-- Input gambar user untuk overlay di belakang kartu -->
+    <input type="file" id="user-img-file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadUserImg(event)">
+    <button class="btn-a" style="margin:10px 0 0 0" onclick="document.getElementById('user-img-file').click()">Upload Gambar untuk Di-overlay</button>
 
     <!-- Controls -->
     <div class="controls">
@@ -237,7 +240,37 @@ input[type=file]{display:none}
 <div class="toast" id="toast"></div>
 
 <script>
-const S = { token:null, activities:[], selAct:null, templates:[], selTpl:null, align:'left', bg:'none' };
+const S = {
+  token:null, activities:[], selAct:null, templates:[], selTpl:null, align:'left', bg:'none',
+  userImg:null, userImgObj:null,
+  drag:{ active:false, type:null, offsetX:0, offsetY:0 },
+  overlayPos:{ dist:{x:540,y:420}, hr:{x:540,y:520} }
+};
+// Tambahkan preset template kartu (Sprint card)
+window.addEventListener('DOMContentLoaded',()=>{
+  const img=new Image();
+  img.onload=()=>{
+    S.templates.unshift({name:'Sprint Card',img,isCard:true});
+    renderTplGrid();
+  };
+  img.src='https://cdn.jsdelivr.net/gh/iraphic/stravastick-assets@main/sprint-card-base.png';
+});
+// Upload gambar user untuk overlay di belakang kartu
+function uploadUserImg(e){
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      S.userImgObj = img;
+      S.userImg = ev.target.result;
+      doRender();
+      toast('✓ Gambar siap di-overlay');
+    };
+    img.src = ev.target.result;
+  };
+  r.readAsDataURL(file);
+}
 const canvas = document.getElementById('main-canvas');
 const ctx = canvas.getContext('2d');
 
@@ -378,6 +411,8 @@ function doRender() {
   document.getElementById('cv-empty').style.display='none';
   document.getElementById('cv-wrap').style.display='block';
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Jika template kartu dan ada userImg, gambar userImg dulu
+  if(S.selTpl.isCard && S.userImgObj){ ctx.drawImage(S.userImgObj, 60, 90, canvas.width-120, 320); }
   ctx.drawImage(tpl,0,0,canvas.width,canvas.height);
   if (S.selAct) drawStats();
   updateHint();
@@ -385,11 +420,24 @@ function doRender() {
 
 function drawStats() {
   const a=S.selAct, W=canvas.width, H=canvas.height, sc=W/1080;
+  // Khusus template kartu: hanya jarak & heartrate, font Gill Sans, warna hitam, posisi drag
+  if(S.selTpl && S.selTpl.isCard){
+    ctx.textAlign='center';
+    ctx.font = `bold ${Math.round(54*sc)}px 'Gill Sans', 'Arial', sans-serif`;
+    ctx.fillStyle = '#111';
+    // Jarak
+    const dist = (a.distance/1000).toFixed(2)+' km';
+    ctx.fillText(dist, S.overlayPos.dist.x, S.overlayPos.dist.y);
+    // Heartrate
+    if(a.average_heartrate)
+      ctx.fillText(Math.round(a.average_heartrate)+' bpm', S.overlayPos.hr.x, S.overlayPos.hr.y);
+    return;
+  }
+  // ...existing code for non-card template...
   const yPct=+document.getElementById('ctrl-y').value;
   const fs=+document.getElementById('ctrl-fs').value*sc;
   const color=document.getElementById('ctrl-color').value;
   const lh=fs*1.35, lhSm=fs*0.6;
-
   const show={
     dist: document.querySelector('#stog-dist input').checked,
     pace: document.querySelector('#stog-pace input').checked,
@@ -406,17 +454,14 @@ function drawStats() {
   if(show.elev&&a.total_elevation_gain) items.push({lbl:'ELEVASI',val:Math.round(a.total_elevation_gain)+' m'});
   if(show.cad&&a.average_cadence) items.push({lbl:'CADENCE', val:Math.round(a.average_cadence*2)+' spm'});
   if(!items.length) return;
-
   const padX = S.align==='center'?W/2 : S.align==='right'?W-80*sc : 80*sc;
   let curY = H*(yPct/100);
   const blockH = items.length*(lh+lhSm+10*sc)+24*sc;
-
   if(S.bg==='dark'){
     ctx.fillStyle='rgba(0,0,0,0.58)';
     const bx=S.align==='center'?W/2-240*sc:S.align==='right'?W-550*sc:40*sc;
     rrect(ctx,bx,curY-20*sc,460*sc,blockH,18*sc); ctx.fill(); curY+=10*sc;
   }
-
   for(const item of items){
     ctx.textAlign=S.align;
     if(S.bg==='pill'){
@@ -436,6 +481,35 @@ function drawStats() {
     curY+=lh+2*sc;
   }
 }
+// Drag & touch untuk overlay teks (khusus template kartu)
+canvas.addEventListener('mousedown',startDrag);
+canvas.addEventListener('touchstart',startDrag);
+canvas.addEventListener('mousemove',onDrag);
+canvas.addEventListener('touchmove',onDrag);
+canvas.addEventListener('mouseup',endDrag);
+canvas.addEventListener('mouseleave',endDrag);
+canvas.addEventListener('touchend',endDrag);
+
+function getPointerPos(e){
+  if(e.touches) return {x:e.touches[0].clientX-canvas.getBoundingClientRect().left, y:e.touches[0].clientY-canvas.getBoundingClientRect().top};
+  return {x:e.offsetX, y:e.offsetY};
+}
+function startDrag(e){
+  if(!(S.selTpl && S.selTpl.isCard && S.selAct)) return;
+  const pos=getPointerPos(e);
+  // Cek dekat jarak atau hr
+  const d=S.overlayPos.dist, h=S.overlayPos.hr;
+  if(Math.abs(pos.x-d.x)<100 && Math.abs(pos.y-d.y)<40){ S.drag={active:true,type:'dist',offsetX:pos.x-d.x,offsetY:pos.y-d.y}; }
+  else if(Math.abs(pos.x-h.x)<100 && Math.abs(pos.y-h.y)<40){ S.drag={active:true,type:'hr',offsetX:pos.x-h.x,offsetY:pos.y-h.y}; }
+}
+function onDrag(e){
+  if(!S.drag.active) return;
+  e.preventDefault();
+  const pos=getPointerPos(e);
+  if(S.drag.type==='dist'){ S.overlayPos.dist={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; doRender(); }
+  else if(S.drag.type==='hr'){ S.overlayPos.hr={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; doRender(); }
+}
+function endDrag(){ S.drag.active=false; }
 
 function rrect(ctx,x,y,w,h,r){
   ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);

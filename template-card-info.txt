@@ -1,0 +1,3 @@
+// Template image for card overlay (Sprint card)
+// Place this file in the project and reference in index.html
+// This is a placeholder, actual image should be uploaded by user or placed in public folder
