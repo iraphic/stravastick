@@ -240,11 +240,13 @@ input[type=file]{display:none}
 <div class="toast" id="toast"></div>
 
 <script>
+const defOverlayPos = { name:{x:540,y:320}, dist:{x:540,y:420}, hr:{x:540,y:520} };
 const S = {
   token:null, activities:[], selAct:null, templates:[], selTpl:null, align:'left', bg:'none',
   userImg:null, userImgObj:null,
+  athleteName: '',
   drag:{ active:false, type:null, offsetX:0, offsetY:0 },
-  overlayPos:{ dist:{x:540,y:420}, hr:{x:540,y:520} }
+  overlayPos: JSON.parse(localStorage.getItem('overlayPos')) || defOverlayPos
 };
 // Tambahkan preset template kartu (Sprint card)
 window.addEventListener('DOMContentLoaded',()=>{
@@ -314,6 +316,7 @@ async function loadActivities() {
     const h = { Authorization:'Bearer '+S.token };
     const ath = await (await fetch('https://www.strava.com/api/v3/athlete',{headers:h})).json();
     if (ath.errors) throw new Error('Token tidak valid');
+    S.athleteName = ath.firstname+' '+ath.lastname;
     showBadge(ath.firstname+' '+ath.lastname);
     const acts = await (await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=30',{headers:h})).json();
     S.activities = acts.filter(a => a.sport_type==='Run'||a.type==='Run');
@@ -425,6 +428,9 @@ function drawStats() {
     ctx.textAlign='center';
     ctx.font = `bold ${Math.round(54*sc)}px 'Gill Sans', 'Arial', sans-serif`;
     ctx.fillStyle = '#111';
+    // Nama User
+    if(S.athleteName)
+      ctx.fillText(S.athleteName, S.overlayPos.name.x, S.overlayPos.name.y);
     // Jarak
     const dist = (a.distance/1000).toFixed(2)+' km';
     ctx.fillText(dist, S.overlayPos.dist.x, S.overlayPos.dist.y);
@@ -497,17 +503,21 @@ function getPointerPos(e){
 function startDrag(e){
   if(!(S.selTpl && S.selTpl.isCard && S.selAct)) return;
   const pos=getPointerPos(e);
-  // Cek dekat jarak atau hr
-  const d=S.overlayPos.dist, h=S.overlayPos.hr;
-  if(Math.abs(pos.x-d.x)<100 && Math.abs(pos.y-d.y)<40){ S.drag={active:true,type:'dist',offsetX:pos.x-d.x,offsetY:pos.y-d.y}; }
-  else if(Math.abs(pos.x-h.x)<100 && Math.abs(pos.y-h.y)<40){ S.drag={active:true,type:'hr',offsetX:pos.x-h.x,offsetY:pos.y-h.y}; }
+  // Hitung bounding box sederhana
+  const n=S.overlayPos.name, d=S.overlayPos.dist, h=S.overlayPos.hr;
+  if(S.athleteName && Math.abs(pos.x-n.x)<150 && Math.abs(pos.y-n.y)<40){ S.drag={active:true,type:'name',offsetX:pos.x-n.x,offsetY:pos.y-n.y}; }
+  else if(Math.abs(pos.x-d.x)<100 && Math.abs(pos.y-d.y)<40){ S.drag={active:true,type:'dist',offsetX:pos.x-d.x,offsetY:pos.y-d.y}; }
+  else if(S.selAct.average_heartrate && Math.abs(pos.x-h.x)<100 && Math.abs(pos.y-h.y)<40){ S.drag={active:true,type:'hr',offsetX:pos.x-h.x,offsetY:pos.y-h.y}; }
 }
 function onDrag(e){
   if(!S.drag.active) return;
   e.preventDefault();
   const pos=getPointerPos(e);
-  if(S.drag.type==='dist'){ S.overlayPos.dist={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; doRender(); }
-  else if(S.drag.type==='hr'){ S.overlayPos.hr={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; doRender(); }
+  if(S.drag.type==='name'){ S.overlayPos.name={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; }
+  else if(S.drag.type==='dist'){ S.overlayPos.dist={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; }
+  else if(S.drag.type==='hr'){ S.overlayPos.hr={x:pos.x-S.drag.offsetX,y:pos.y-S.drag.offsetY}; }
+  localStorage.setItem('overlayPos', JSON.stringify(S.overlayPos));
+  doRender();
 }
 function endDrag(){ S.drag.active=false; }
 
