@@ -50,9 +50,23 @@
   #strava-connect-area {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
-  #client-id-input {
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .tab-btn.active { background: var(--orange); color: #fff; }
+  #client-id-input, #token-input {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text);
@@ -394,11 +408,28 @@
 <header>
   <div class="logo">STRAVA<span>STICK</span></div>
   <div id="strava-connect-area">
-    <input id="client-id-input" type="text" placeholder="Strava Client ID" />
-    <button class="btn-strava" onclick="connectStrava()">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-      Connect Strava
-    </button>
+    <div style="display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;">
+      <button class="tab-btn active" id="tab-oauth" onclick="switchTab('oauth')">OAuth</button>
+      <button class="tab-btn" id="tab-token" onclick="switchTab('token')">Paste Token</button>
+    </div>
+
+    <div id="panel-oauth" style="display:flex;align-items:center;gap:10px;">
+      <input id="client-id-input" type="text" placeholder="Client ID" />
+      <button class="btn-strava" onclick="connectStrava()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+        Connect
+      </button>
+    </div>
+
+    <div id="panel-token" style="display:none;align-items:center;gap:10px;">
+      <input id="token-input" type="password" placeholder="Paste access_token di sini" style="width:220px;" />
+      <button class="btn-strava" onclick="useManualToken()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Pakai
+      </button>
+    </div>
+
+    <div id="connected-slot"></div>
   </div>
 </header>
 
@@ -828,6 +859,32 @@
     toast('✓ Data diperbarui');
   }
 
+  // ─── TAB SWITCH ─────────────────────────────────────
+  function switchTab(tab) {
+    document.getElementById('tab-oauth').classList.toggle('active', tab === 'oauth');
+    document.getElementById('tab-token').classList.toggle('active', tab === 'token');
+    document.getElementById('panel-oauth').style.display = tab === 'oauth' ? 'flex' : 'none';
+    document.getElementById('panel-token').style.display = tab === 'token' ? 'flex' : 'none';
+  }
+
+  function useManualToken() {
+    const token = document.getElementById('token-input').value.trim();
+    if (!token) { toast('⚠ Paste access_token dulu'); return; }
+    state.stravaToken = token;
+    fetchStravaData(token);
+  }
+
+  function showConnectedBadge(name) {
+    document.getElementById('panel-oauth').style.display = 'none';
+    document.getElementById('panel-token').style.display = 'none';
+    document.querySelector('.tab-btn.active') && (document.querySelector('[style*="display:flex;gap:6px"]') || document.querySelector('div[style*="gap:6px"]'));
+    document.getElementById('connected-slot').innerHTML = `
+      <div class="connected-badge">
+        <div class="dot"></div>
+        ${name} terhubung
+      </div>`;
+  }
+
   // ─── STRAVA OAUTH ───────────────────────────────────
   function connectStrava() {
     const clientId = document.getElementById('client-id-input').value.trim();
@@ -897,12 +954,7 @@
       }
 
       // Update header
-      document.getElementById('strava-connect-area').innerHTML = `
-        <div class="connected-badge">
-          <div class="dot"></div>
-          ${athlete.firstname} ${athlete.lastname} terhubung
-        </div>
-      `;
+      showConnectedBadge(`${athlete.firstname} ${athlete.lastname}`);
 
       renderCanvas();
       toast('✓ Data Strava dimuat!');
