@@ -113,8 +113,7 @@ input[type=file]{display:none}
       <button class="tab-btn" id="tb-token" onclick="switchTab('token')">Token</button>
     </div>
     <div class="auth-panel" id="panel-oauth">
-      <input id="in-cid" type="text" placeholder="Client ID" />
-      <button class="btn-connect" onclick="doOAuth()">
+      <button class="btn-connect" onclick="window.location='/api/strava-auth'">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
         Connect
       </button>
@@ -250,10 +249,8 @@ function switchTab(t) {
   });
 }
 function doOAuth() {
-  const id = document.getElementById('in-cid').value.trim();
-  if (!id) { toast('⚠ Masukkan Client ID'); return; }
-  const base = location.href.split('#')[0].split('?')[0];
-  location.href = `https://www.strava.com/oauth/authorize?client_id=${id}&response_type=token&redirect_uri=${encodeURIComponent(base)}&approval_prompt=force&scope=read,activity:read`;
+  // Tidak dipakai lagi, digantikan backend OAuth
+  window.location = '/api/strava-auth';
 }
 function doToken() {
   const t = document.getElementById('in-tok').value.trim();
@@ -261,9 +258,14 @@ function doToken() {
   S.token = t; loadActivities();
 }
 function parseURL() {
+  // Cek access_token di query string (dari backend)
+  const q = new URLSearchParams(window.location.search);
+  const t = q.get('access_token');
+  if (t) { S.token = t; history.replaceState(null,'',location.pathname); loadActivities(); return; }
+  // Fallback: hash (legacy)
   const h = new URLSearchParams(location.hash.slice(1));
-  const t = h.get('access_token');
-  if (t) { S.token = t; history.replaceState(null,'',location.pathname); loadActivities(); }
+  const th = h.get('access_token');
+  if (th) { S.token = th; history.replaceState(null,'',location.pathname); loadActivities(); }
 }
 function showBadge(name) {
   document.getElementById('auth-tabs').style.display = 'none';
