@@ -321,6 +321,18 @@ async function loadActivities() {
     const acts = await (await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=30',{headers:h})).json();
     S.activities = acts.filter(a => a.sport_type==='Run'||a.type==='Run');
     renderList();
+    
+    // Auto-select template kartu jika tersedia dan belum ada template yang terpilih
+    if (!S.selTpl && S.templates.length > 0 && S.templates[0].isCard) {
+      S.selTpl = S.templates[0];
+      renderTplGrid();
+    }
+    
+    // Auto-select aktivitas pertama agar preview langsung muncul
+    if (S.activities.length > 0 && !S.selAct) {
+      selAct(0);
+    }
+
     toast('✓ '+S.activities.length+' lari dimuat');
   } catch(e) { toast('⚠ '+e.message); }
 }
