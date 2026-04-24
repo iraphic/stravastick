@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StravaStick — Stiker Lari Kamu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #FC4C02;
+    --orange-dim: #c93d01;
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0ede8;
+    --muted: #888;
+    --green: #2ecc71;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 50;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+  }
+  .logo span { color: var(--orange); }
+
+  /* STRAVA CONNECT */
+  #strava-connect-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #client-id-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    width: 160px;
+    transition: border-color .2s;
+  }
+  #client-id-input:focus { outline: none; border-color: var(--orange); }
+  #client-id-input::placeholder { color: var(--muted); }
+  .btn-strava {
+    background: var(--orange);
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background .2s, transform .1s;
+  }
+  .btn-strava:hover { background: var(--orange-dim); }
+  .btn-strava:active { transform: scale(0.97); }
+  .btn-strava svg { width: 16px; height: 16px; }
+  .connected-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--green);
+    background: rgba(46,204,113,0.1);
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(46,204,113,0.2);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    min-height: calc(100vh - 61px);
+  }
+
+  /* CANVAS AREA */
+  .canvas-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: #111;
+    border-right: 1px solid var(--border);
+    gap: 20px;
+    min-height: 600px;
+  }
+  .canvas-wrap {
+    position: relative;
+    display: inline-block;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(252,76,2,0.12);
+  }
+  #main-canvas {
+    display: block;
+    max-width: 100%;
+    max-height: 65vh;
+    width: auto;
+    height: auto;
+  }
+  .canvas-placeholder {
+    width: 350px;
+    height: 600px;
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+  }
+  .canvas-placeholder svg { width: 40px; height: 40px; opacity: 0.3; }
+
+  /* CANVAS ACTIONS */
+  .canvas-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn-action {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background .2s, border-color .2s;
+    white-space: nowrap;
+  }
+  .btn-action:hover { background: var(--surface2); border-color: rgba(255,255,255,0.18); }
+  .btn-action.primary { background: var(--orange); border-color: var(--orange); color: #fff; }
+  .btn-action.primary:hover { background: var(--orange-dim); }
+  .btn-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--bg);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 61px);
+  }
+
+  /* SECTION */
+  .section {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .section-header svg { width: 14px; height: 14px; }
+  .section-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* STATS CARDS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 28px;
+    color: var(--orange);
+    line-height: 1;
+  }
+  .stat-unit {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .upload-zone:hover { border-color: var(--orange); background: rgba(252,76,2,0.04); color: var(--text); }
+  .upload-zone svg { width: 24px; height: 24px; opacity: 0.5; }
+  .upload-zone input { display: none; }
+  .upload-zone .upload-name { font-size: 11px; color: var(--green); margin-top: 4px; }
+
+  /* OVERLAY CONTROLS */
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .control-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  input[type=range] {
+    flex: 1;
+    accent-color: var(--orange);
+    height: 4px;
+  }
+  input[type=color] {
+    width: 32px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    cursor: pointer;
+    padding: 2px;
+  }
+  .toggle-group {
+    display: flex;
+    gap: 4px;
+  }
+  .toggle-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .toggle-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+  /* INFO BOX */
+  .info-box {
+    background: rgba(252,76,2,0.06);
+    border: 1px solid rgba(252,76,2,0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 11px;
+    color: #aaa;
+    line-height: 1.6;
+  }
+  .info-box a { color: var(--orange); text-decoration: none; }
+  .info-box a:hover { text-decoration: underline; }
+
+  /* SHARE SECTION */
+  .share-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #FC4C02, #ff6e30);
+    border: none;
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 1px;
+    padding: 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: opacity .2s, transform .1s;
+  }
+  .share-btn:hover { opacity: 0.9; }
+  .share-btn:active { transform: scale(0.98); }
+  .share-btn svg { width: 20px; height: 20px; }
+
+  /* HIDDEN FILE INPUTS */
+  #template-input, #photo-input { display: none; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity .3s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* OVERLAY BADGE */
+  .overlay-preview {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .overlay-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .overlay-badge:hover { border-color: var(--orange); }
+  .overlay-badge.active { border-color: var(--orange); background: rgba(252,76,2,0.08); }
+  .overlay-badge input[type=checkbox] { accent-color: var(--orange); }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { max-height: none; border-right: none; border-top: 1px solid var(--border); }
+    .canvas-area { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">STRAVA<span>STICK</span></div>
+  <div id="strava-connect-area">
+    <input id="client-id-input" type="text" placeholder="Strava Client ID" />
+    <button class="btn-strava" onclick="connectStrava()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+      Connect Strava
+    </button>
+  </div>
+</header>
+
+<div class="main">
+  <!-- CANVAS AREA -->
+  <div class="canvas-area">
+    <div id="canvas-container">
+      <div class="canvas-placeholder" id="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m3 9 5-5 4 4 4-4 5 5"/><circle cx="8.5" cy="13.5" r="1.5"/></svg>
+        <span>Upload template PNG dulu</span>
+        <span style="font-size:11px;opacity:0.5">1080×1920px recommended</span>
+      </div>
+      <div class="canvas-wrap" id="canvas-wrap" style="display:none">
+        <canvas id="main-canvas" width="1080" height="1920"></canvas>
+      </div>
+    </div>
+    <div class="canvas-actions">
+      <button class="btn-action" onclick="document.getElementById('template-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 5-5 4 4 4-4 5 5"/><circle cx="8.5" cy="13.5" r="1.5"/></svg>
+        Ganti Template
+      </button>
+      <button class="btn-action" onclick="document.getElementById('photo-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Tambah Foto
+      </button>
+      <button class="btn-action" onclick="renderCanvas()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2H3v16h5v4l4-4h5l4-4V2zM11 11V7m4 4V9"/></svg>
+        Refresh
+      </button>
+      <button class="btn-action primary" onclick="downloadCanvas()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PNG
+      </button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- STRAVA STATS -->
+    <div class="section">
+      <div class="section-header">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+        Strava Stats
+      </div>
+      <div class="section-body">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Run</div>
+            <div class="stat-value" id="stat-km">—</div>
+            <div class="stat-unit">km</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Pace</div>
+            <div class="stat-value" id="stat-pace">—</div>
+            <div class="stat-unit">min/km</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Heart Rate</div>
+            <div class="stat-value" id="stat-hr">—</div>
+            <div class="stat-unit">bpm avg</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Activities</div>
+            <div class="stat-value" id="stat-count">—</div>
+            <div class="stat-unit">total runs</div>
+          </div>
+        </div>
+
+        <!-- MANUAL OVERRIDE -->
+        <details style="margin-top:4px">
+          <summary style="font-size:11px;color:var(--muted);cursor:pointer;user-select:none">▸ Input manual (tanpa Strava)</summary>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+            <div class="control-row">
+              <label class="control-label">Total KM</label>
+              <input type="number" id="manual-km" placeholder="e.g. 247" style="width:100px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border-radius:6px;">
+            </div>
+            <div class="control-row">
+              <label class="control-label">Heart Rate</label>
+              <input type="number" id="manual-hr" placeholder="e.g. 158" style="width:100px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border-radius:6px;">
+            </div>
+            <div class="control-row">
+              <label class="control-label">Avg Pace</label>
+              <input type="text" id="manual-pace" placeholder="e.g. 5:42" style="width:100px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border-radius:6px;">
+            </div>
+            <div class="control-row">
+              <label class="control-label">Jumlah Lari</label>
+              <input type="number" id="manual-count" placeholder="e.g. 42" style="width:100px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:6px 10px;border-radius:6px;">
+            </div>
+            <button class="btn-action" style="width:100%;justify-content:center" onclick="applyManual()">Terapkan</button>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- TEMPLATE UPLOAD -->
+    <div class="section">
+      <div class="section-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 5-5 4 4 4-4 5 5"/></svg>
+        Template Stiker
+      </div>
+      <div class="section-body">
+        <label class="upload-zone" id="template-zone" onclick="document.getElementById('template-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Klik untuk upload PNG template</span>
+          <span style="font-size:10px">PNG dengan transparansi didukung</span>
+          <div class="upload-name" id="template-name"></div>
+        </label>
+      </div>
+    </div>
+
+    <!-- FOTO GALERI -->
+    <div class="section">
+      <div class="section-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Foto dari Galeri
+      </div>
+      <div class="section-body">
+        <label class="upload-zone" id="photo-zone" onclick="document.getElementById('photo-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Tambah foto lari kamu</span>
+          <div class="upload-name" id="photo-name"></div>
+        </label>
+        <div id="photo-controls" style="display:none;flex-direction:column;gap:10px">
+          <div class="control-row">
+            <label class="control-label">Layer</label>
+            <div class="toggle-group">
+              <button class="toggle-btn" id="layer-behind" onclick="setPhotoLayer('behind')">Di bawah</button>
+              <button class="toggle-btn active" id="layer-front" onclick="setPhotoLayer('front')">Di atas</button>
+            </div>
+          </div>
+          <div class="control-row">
+            <label class="control-label">Opacity</label>
+            <input type="range" id="photo-opacity" min="10" max="100" value="85" oninput="renderCanvas()">
+            <span style="font-size:11px;color:var(--muted);min-width:28px" id="opacity-val">85%</span>
+          </div>
+          <div class="control-row">
+            <label class="control-label">Ukuran</label>
+            <input type="range" id="photo-scale" min="20" max="150" value="100" oninput="renderCanvas()">
+            <span style="font-size:11px;color:var(--muted);min-width:28px" id="scale-val">100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERLAY STATS CONTROL -->
+    <div class="section">
+      <div class="section-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Overlay Stats
+      </div>
+      <div class="section-body">
+        <div class="overlay-preview">
+          <label class="overlay-badge active"><input type="checkbox" checked id="show-km" onchange="renderCanvas()"> Total KM</label>
+          <label class="overlay-badge active"><input type="checkbox" checked id="show-hr" onchange="renderCanvas()"> Heart Rate</label>
+          <label class="overlay-badge active"><input type="checkbox" checked id="show-pace" onchange="renderCanvas()"> Avg Pace</label>
+          <label class="overlay-badge active"><input type="checkbox" checked id="show-count" onchange="renderCanvas()"> # Lari</label>
+        </div>
+        <div class="control-row">
+          <label class="control-label">Posisi Y</label>
+          <input type="range" id="overlay-y" min="5" max="90" value="75" oninput="renderCanvas()">
+        </div>
+        <div class="control-row">
+          <label class="control-label">Ukuran font</label>
+          <input type="range" id="font-size-range" min="30" max="120" value="60" oninput="renderCanvas()">
+        </div>
+        <div class="control-row">
+          <label class="control-label">Warna teks</label>
+          <input type="color" id="text-color" value="#FC4C02" oninput="renderCanvas()">
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="pos-left" onclick="setAlign('left')">⬜</button>
+            <button class="toggle-btn" id="pos-center" onclick="setAlign('center')">⬜</button>
+            <button class="toggle-btn" id="pos-right" onclick="setAlign('right')">⬜</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <label class="control-label">Background</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="bg-none" onclick="setBgStyle('none')">None</button>
+            <button class="toggle-btn" id="bg-dark" onclick="setBgStyle('dark')">Dark</button>
+            <button class="toggle-btn" id="bg-blur" onclick="setBgStyle('pill')">Pill</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHARE -->
+    <div class="section">
+      <div class="section-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </div>
+      <div class="section-body">
+        <button class="share-btn" onclick="shareToIG()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          Share ke IG Story
+        </button>
+        <div class="info-box">
+          Akan download PNG 1080×1920px. Di HP, gunakan "Share" → Instagram. Web Share API digunakan jika tersedia.
+        </div>
+      </div>
+    </div>
+
+    <!-- SETUP GUIDE -->
+    <div class="info-box" style="margin-bottom:8px">
+      <strong style="color:var(--orange)">Setup Strava API:</strong><br>
+      1. Buka <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a><br>
+      2. Buat App → copy Client ID<br>
+      3. Set Callback Domain ke domain kamu<br>
+      4. Paste Client ID di header atas → Connect
+    </div>
+
+  </div>
+</div>
+
+<!-- HIDDEN INPUTS -->
+<input type="file" id="template-input" accept="image/png,image/jpeg,image/webp" onchange="loadTemplate(event)">
+<input type="file" id="photo-input" accept="image/*" onchange="loadPhoto(event)">
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── STATE ──────────────────────────────────────────
+  const state = {
+    templateImg: null,
+    photoImg: null,
+    photoLayer: 'front',
+    textAlign: 'left',
+    bgStyle: 'none',
+    stats: { km: null, hr: null, pace: null, count: null },
+    stravaToken: null
+  };
+
+  // ─── CANVAS ─────────────────────────────────────────
+  const canvas = document.getElementById('main-canvas');
+  const ctx = canvas.getContext('2d');
+
+  function renderCanvas() {
+    if (!state.templateImg) return;
+
+    // Update UI readouts
+    document.getElementById('opacity-val').textContent = document.getElementById('photo-opacity').value + '%';
+    document.getElementById('scale-val').textContent = document.getElementById('photo-scale').value + '%';
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const photoOpacity = parseInt(document.getElementById('photo-opacity').value) / 100;
+    const photoScale   = parseInt(document.getElementById('photo-scale').value) / 100;
+
+    // Layer: photo behind
+    if (state.photoImg && state.photoLayer === 'behind') {
+      drawPhoto(photoScale, photoOpacity);
+    }
+
+    // Layer: template
+    ctx.drawImage(state.templateImg, 0, 0, canvas.width, canvas.height);
+
+    // Layer: photo front
+    if (state.photoImg && state.photoLayer === 'front') {
+      drawPhoto(photoScale, photoOpacity);
+    }
+
+    // Layer: stats overlay
+    drawStats();
+  }
+
+  function drawPhoto(scale, opacity) {
+    const img = state.photoImg;
+    const targetW = canvas.width * scale;
+    const targetH = (img.height / img.width) * targetW;
+    const x = (canvas.width - targetW) / 2;
+    const y = (canvas.height - targetH) / 2;
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(img, x, y, targetW, targetH);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawStats() {
+    const s = state.stats;
+    const showKm    = document.getElementById('show-km').checked;
+    const showHr    = document.getElementById('show-hr').checked;
+    const showPace  = document.getElementById('show-pace').checked;
+    const showCount = document.getElementById('show-count').checked;
+
+    const yPct   = parseInt(document.getElementById('overlay-y').value);
+    const fSize  = parseInt(document.getElementById('font-size-range').value);
+    const color  = document.getElementById('text-color').value;
+    const align  = state.textAlign;
+    const bgStyle = state.bgStyle;
+
+    const startY = canvas.height * (yPct / 100);
+    const padX   = align === 'center' ? canvas.width / 2 : align === 'right' ? canvas.width - 80 : 80;
+    const lineH  = fSize * 1.4;
+
+    const items = [];
+    if (showKm    && s.km    != null) items.push({ label: 'TOTAL RUN', value: s.km + ' km' });
+    if (showHr    && s.hr    != null) items.push({ label: 'HEART RATE', value: s.hr + ' bpm' });
+    if (showPace  && s.pace  != null) items.push({ label: 'AVG PACE', value: s.pace + ' /km' });
+    if (showCount && s.count != null) items.push({ label: 'ACTIVITIES', value: s.count + ' runs' });
+
+    if (items.length === 0) return;
+
+    const blockH = items.length * (lineH * 2 + 16) + 20;
+
+    if (bgStyle === 'dark') {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      const bx = align === 'center' ? canvas.width/2 - 220 : align === 'right' ? canvas.width - 520 : 40;
+      roundRect(ctx, bx, startY - 20, 480, blockH, 24);
+      ctx.fill();
+    }
+
+    let curY = startY + lineH * 0.4;
+    for (const item of items) {
+      ctx.textAlign = align;
+      ctx.font = `500 ${Math.round(fSize * 0.55)}px 'DM Mono', monospace`;
+
+      if (bgStyle === 'pill') {
+        const tw = ctx.measureText(item.value).width + 60;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        const px = align === 'center' ? padX - tw/2 : align === 'right' ? padX - tw : padX - 20;
+        roundRect(ctx, px, curY - fSize * 0.7, Math.max(tw, ctx.measureText(item.label).width + 60), lineH * 2, 16);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillText(item.label, padX, curY);
+      curY += lineH * 0.65;
+
+      ctx.font = `900 ${fSize}px 'Barlow Condensed', sans-serif`;
+      ctx.fillStyle = color;
+      ctx.fillText(item.value, padX, curY);
+      curY += lineH + 10;
+    }
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ─── TEMPLATE LOAD ──────────────────────────────────
+  function loadTemplate(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    document.getElementById('template-name').textContent = '✓ ' + file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        state.templateImg = img;
+        canvas.width  = img.width  || 1080;
+        canvas.height = img.height || 1920;
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('canvas-wrap').style.display = 'block';
+        renderCanvas();
+        toast('✓ Template dimuat');
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ─── PHOTO LOAD ─────────────────────────────────────
+  function loadPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    document.getElementById('photo-name').textContent = '✓ ' + file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        state.photoImg = img;
+        document.getElementById('photo-controls').style.display = 'flex';
+        renderCanvas();
+        toast('✓ Foto ditambahkan');
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ─── CONTROLS ───────────────────────────────────────
+  function setPhotoLayer(layer) {
+    state.photoLayer = layer;
+    document.getElementById('layer-behind').classList.toggle('active', layer === 'behind');
+    document.getElementById('layer-front').classList.toggle('active', layer === 'front');
+    renderCanvas();
+  }
+
+  function setAlign(align) {
+    state.textAlign = align;
+    ['left','center','right'].forEach(a => {
+      document.getElementById('pos-' + a).classList.toggle('active', a === align);
+    });
+    renderCanvas();
+  }
+
+  function setBgStyle(style) {
+    state.bgStyle = style;
+    ['none','dark','pill'].forEach(s => {
+      document.getElementById('bg-' + s).classList.toggle('active', s === style);
+    });
+    renderCanvas();
+  }
+
+  // ─── MANUAL STATS ───────────────────────────────────
+  function applyManual() {
+    const km    = document.getElementById('manual-km').value;
+    const hr    = document.getElementById('manual-hr').value;
+    const pace  = document.getElementById('manual-pace').value;
+    const count = document.getElementById('manual-count').value;
+    if (km)    { state.stats.km    = km;    document.getElementById('stat-km').textContent    = km; }
+    if (hr)    { state.stats.hr    = hr;    document.getElementById('stat-hr').textContent    = hr; }
+    if (pace)  { state.stats.pace  = pace;  document.getElementById('stat-pace').textContent  = pace; }
+    if (count) { state.stats.count = count; document.getElementById('stat-count').textContent = count; }
+    renderCanvas();
+    toast('✓ Data diperbarui');
+  }
+
+  // ─── STRAVA OAUTH ───────────────────────────────────
+  function connectStrava() {
+    const clientId = document.getElementById('client-id-input').value.trim();
+    if (!clientId) { toast('⚠ Masukkan Client ID dulu'); return; }
+    const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+    const scope = 'read,activity:read';
+    const url = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}`;
+    window.location.href = url;
+  }
+
+  function parseStravaToken() {
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    if (token) {
+      state.stravaToken = token;
+      history.replaceState(null, '', window.location.pathname);
+      fetchStravaData(token);
+    }
+  }
+
+  async function fetchStravaData(token) {
+    try {
+      toast('⏳ Mengambil data Strava...');
+      const headers = { 'Authorization': 'Bearer ' + token };
+
+      // Athlete profile
+      const athleteRes = await fetch('https://www.strava.com/api/v3/athlete', { headers });
+      const athlete = await athleteRes.json();
+
+      // Stats
+      const statsRes = await fetch(`https://www.strava.com/api/v3/athletes/${athlete.id}/stats`, { headers });
+      const stats = await statsRes.json();
+
+      // Recent activities (for heart rate)
+      const actRes = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=10', { headers });
+      const activities = await actRes.json();
+
+      // Total run distance
+      const totalM = stats.all_run_totals?.distance || 0;
+      const totalKm = (totalM / 1000).toFixed(1);
+      state.stats.km = totalKm;
+      document.getElementById('stat-km').textContent = totalKm;
+
+      // Total run count
+      const totalCount = stats.all_run_totals?.count || 0;
+      state.stats.count = totalCount;
+      document.getElementById('stat-count').textContent = totalCount;
+
+      // Avg heart rate from recent runs
+      const hrRuns = activities.filter(a => a.type === 'Run' && a.average_heartrate);
+      if (hrRuns.length > 0) {
+        const avgHr = Math.round(hrRuns.reduce((s, a) => s + a.average_heartrate, 0) / hrRuns.length);
+        state.stats.hr = avgHr;
+        document.getElementById('stat-hr').textContent = avgHr;
+      }
+
+      // Avg pace from recent runs
+      const paceRuns = activities.filter(a => a.type === 'Run' && a.average_speed > 0);
+      if (paceRuns.length > 0) {
+        const avgSpeed = paceRuns.reduce((s, a) => s + a.average_speed, 0) / paceRuns.length;
+        const paceSecPerKm = 1000 / avgSpeed;
+        const paceMin = Math.floor(paceSecPerKm / 60);
+        const paceSec = Math.round(paceSecPerKm % 60).toString().padStart(2, '0');
+        state.stats.pace = `${paceMin}:${paceSec}`;
+        document.getElementById('stat-pace').textContent = `${paceMin}:${paceSec}`;
+      }
+
+      // Update header
+      document.getElementById('strava-connect-area').innerHTML = `
+        <div class="connected-badge">
+          <div class="dot"></div>
+          ${athlete.firstname} ${athlete.lastname} terhubung
+        </div>
+      `;
+
+      renderCanvas();
+      toast('✓ Data Strava dimuat!');
+
+    } catch(err) {
+      console.error(err);
+      toast('⚠ Gagal ambil data Strava');
+    }
+  }
+
+  // ─── DOWNLOAD ───────────────────────────────────────
+  function downloadCanvas() {
+    if (!state.templateImg) { toast('⚠ Upload template dulu'); return; }
+    const link = document.createElement('a');
+    link.download = 'stravastick-' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast('✓ Gambar didownload!');
+  }
+
+  // ─── SHARE ──────────────────────────────────────────
+  async function shareToIG() {
+    if (!state.templateImg) { toast('⚠ Upload template dulu'); return; }
+    canvas.toBlob(async blob => {
+      const file = new File([blob], 'stravastick.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Strava Story', text: 'Stiker lari hari ini!' });
+        } catch(e) {
+          downloadCanvas();
+        }
+      } else {
+        downloadCanvas();
+        toast('Download dulu, lalu share manual ke IG');
+      }
+    }, 'image/png');
+  }
+
+  // ─── TOAST ──────────────────────────────────────────
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove('show'), 2500);
+  }
+
+  // ─── INIT ────────────────────────────────────────────
+  parseStravaToken();
+</script>
+</body>
+</html>
